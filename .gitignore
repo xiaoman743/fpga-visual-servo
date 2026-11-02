@@ -1,0 +1,23 @@
+﻿# 编译/仿真产物
+build/
+*.bit
+*.bin
+*.elf
+*.o
+*.obj
+__pycache__/
+*.pyc
+xsim.dir/
+.Xil/
+*.wdb
+*.pb
+*.jou
+*.log
+# 编辑器/系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+# 备份
+*.bak*
+*~

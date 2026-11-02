@@ -1,0 +1,32 @@
+idf_component_register(
+    SRCS
+        "rt_rx_main.c"
+        "rt_servo_bus.c"
+        "rt_control.c"
+        "fpga_link.c"
+        "fpga_pos.c"
+        "fpga_kin.c"
+        "vision_wire.c"
+        "vision_reach.c"
+        "vision_pick.c"
+        "vision_auto.c"
+        "vision_probe.c"
+        "vision_calibrate.c"
+        "vision_grip.c"
+        "operator_keys.c"
+        "boot_profile.c"
+        "servo_response.c"
+        "rt_level.c"
+        "rt_height.c"
+    INCLUDE_DIRS "." "proto"
+    PRIV_REQUIRES
+        esp_driver_uart
+        esp_driver_gpio
+        esp_driver_usb_serial_jtag
+        esp_timer
+        esp_wifi
+        nvs_flash
+        esp_netif
+        esp_event
+        driver
+)

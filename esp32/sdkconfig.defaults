@@ -1,0 +1,24 @@
+# Receiver firmware (C-problem P2). Receiver board = N16R8 (16MB flash, 8MB PSRAM).
+# NOTE: keep this file ASCII-only. Chinese comments here make Kconfig log
+# "ignoring malformed line" warnings (the file is parsed as raw bytes).
+CONFIG_IDF_TARGET="esp32s3"
+
+# 16MB flash (N16R8). Without this the image is built for 2MB and flashing can fail.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# PSRAM is NOT used by this firmware (only a few kB of state). Keeping it OFF
+# avoids the classic N16R8 "runs then reboots" trap when the wrong PSRAM mode
+# is selected. If we ever need the teach-in buffer in PSRAM, enable OPI here.
+CONFIG_SPIRAM=n
+
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# -Os, consistent with the other C-problem firmwares.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+
+# Keep the servo control loop jitter low: WiFi modem sleep is disabled in code
+# (esp_wifi_set_ps(WIFI_PS_NONE)), this only affects the tick rate assumption.
+CONFIG_FREERTOS_HZ=100
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
