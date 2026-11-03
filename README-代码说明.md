@@ -2,6 +2,7 @@
 
 > 提交用途：作品代码归档。**本包不含任何学校名称、指导老师姓名、团队成员姓名或团队编号。**
 > 整理日期：2026-11-03
+> **本包与 2026-11-03 19:59 交付比特流同源；`delay_inject` 已接顶层，`MODE=0` 上电旁路。**
 
 ---
 
@@ -9,18 +10,20 @@
 
 ```
 代码包/
-├── fpga-rtl/          FPGA 工程 RTL（Vivado 2020.2，器件 xc7a100tfgg484-2）
+├── fpga-rtl/          FPGA 工程 RTL + 约束（Vivado 2020.2，器件 xc7a100tfgg484-2）
 │   ├── vision_*.v     视觉流水线：颜色判决 → 双质心 → 目标锁定 → 径向内缩 → 极坐标伺服 → V2 帧
 │   ├── servo_polar.v  极坐标伺服（角度通道 cross + 径向通道 |u|²）
 │   ├── target_gate.v  目标锁定（迟滞 + 重捕获）
 │   ├── vision_goal.v  目标点沿极径内缩（夹爪占用补偿）
-│   ├── delay_inject.v 延迟注入（定值 FIFO + LFSR 抖动，P5 实验用）
-│   ├── cmd_parse.v / vision_uart.v / uart_rx.v / uart_tx.v   串口配置与 V2 帧组帧
+│   ├── delay_inject.v 延迟注入（定值 FIFO + LFSR 抖动，P5 实验用；已接顶层）
+│   ├── delay_cfg.v    `D<mode>,<depth>` 命令解析（mode 0 旁路 / 1 定值 / 2 抖动上限）
+│   ├── cmd_parse.v / vision_uart.v / uart_rx.v / uart_tx.v   串口配置与 V2 帧组帧（cmd_parse 仅解析 `C` 命令）
 │   ├── ov5640_*.v / ddr3_*.v / i2c_*.v / lcd_*.v             **原厂例程骨架，未改核心**
-│   └── tb_*.v         自检 testbench（**不要加进综合**）
+│   └── pin.xdc        引脚与时序约束（xc7a100tfgg484-2）
 │
 ├── esp32/             ESP32-S3 执行端固件（ESP-IDF v6.0.1）
 │   ├── main/          主循环、舵机总线、位置式控制、水平/高度约束、一键状态机、局部雅可比辨识
+│   ├── bin/           交付固件 esp32_lift20-20261103.bin（781488 B）+ SHA256.txt
 │   ├── CMakeLists.txt
 │   └── sdkconfig.defaults
 │
@@ -32,6 +35,9 @@
     └── 汇总.md / sigma_scan.md   结果说明与图
 ```
 
+> `fpga-rtl/` 下只有综合用 RTL 与约束，**不放 testbench**；自检 testbench 在 `sim-p5/`（`tb_p5_sweep.v` 等），
+> **不要加进综合**。
+
 ---
 
 ## 二、代码来源声明（评审相关，如实标注）
@@ -39,7 +45,7 @@
 | 模块 | 来源 |
 |---|---|
 | `ov5640_dri.v`、`i2c_dri.v`、`i2c_ov5640_rgb565_cfg.v`、`cmos_capture_data.v`、`ddr3_*.v`、`lcd_driver.v`、`lcd_rgb_top.v`、`picture_size.v`、`rd_id.v`、`clk_div.v` | **原厂/开发板例程骨架**，未修改核心逻辑 |
-| `vision_features.v`、`rgb_color_mask.v`、`centroid_acc.v`、`target_gate.v`、`vision_goal.v`、`servo_polar.v`、`vision_uart.v`、`vision_panel.v`、`vision_config.v`、`osd_cross.v`、`delay_inject.v`、`cmd_parse.v`、`uart_rx.v`、`uart_tx.v` | **自研** |
+| `vision_features.v`、`rgb_color_mask.v`、`centroid_acc.v`、`target_gate.v`、`vision_goal.v`、`servo_polar.v`、`vision_uart.v`、`vision_panel.v`、`vision_config.v`、`osd_cross.v`、`delay_inject.v`、`delay_cfg.v`、`cmd_parse.v`、`uart_rx.v`、`uart_tx.v` | **自研** |
 | ESP32 侧全部 C 代码（`rt_rx_main.c`、`fpga_link.c`、`fpga_pos.c`、`vision_*.c`、`rt_level.c`、`rt_height.c`、`rt_control.c`、`rt_servo_bus.c` 等） | **自研**（舵机 SCS 协议按公开寄存器表实现） |
 | `sim-p5/` 全部 | **自研**（tb 中的 plant 为一阶图像空间模型，非机械臂实测） |
 
@@ -49,11 +55,13 @@
 
 ### FPGA（Vivado 2020.2）
 ```tcl
-# 新建工程 → 加入 fpga-rtl/ 下除 tb_*.v 之外的全部 .v
-# 器件 xc7a100tfgg484-2；引脚约束参考工程 pin.xdc
-# 顶层：ov5640_lcd
+# 新建工程 → 加入 fpga-rtl/ 下全部 30 个 .v（该目录里没有 tb_*.v）
+# 加入约束 fpga-rtl/pin.xdc（引脚 IOSTANDARD + sys_clk 20 ns）
+# 器件 xc7a100tfgg484-2；顶层：ov5640_lcd
 ```
-> ⚠️ `tb_*.v` 仅用于仿真，**不要加入综合源**。
+> ⚠️ `fpga-rtl/` 内不放 `tb_*.v`；自检 testbench 在 `sim-p5/`，**不要加入综合源**。
+> ⚠️ 本包 RTL 与 2026-11-03 19:59 的综合结果同源；顶层已例化 `delay_inject`，上电参数 `.MODE(2'd0)` 为旁路，
+> 只有收到 `D1,n` / `D2,n` 才注入延迟。
 
 ### ESP32-S3（ESP-IDF v6.0.1）
 ```powershell
@@ -61,6 +69,10 @@ idf.py -B build build
 idf.py -p <PORT> -b 460800 flash
 ```
 > ⚠️ 工程路径**不要含中文**（CMake/Ninja 会失败），请先复制到 ASCII 路径再编译。
+>
+> 交付固件：`esp32/bin/esp32_lift20-20261103.bin`，781488 B，抬升/接近超时提高为 18 s / 20 s
+> （`vision_pick.c`：指令超时 8000→18000 ms；`vision_auto.c`：抬升窗口 10000→20000 ms）。
+> SHA256：`29B43A6D2CCC7AA63DFC0C6D7802A07D1780C21E10677188024D5F9821D88F2A`（同 `esp32/bin/SHA256.txt`）。
 
 ### P5 仿真（xsim）
 ```powershell
@@ -81,6 +93,7 @@ powershell -ExecutionPolicy Bypass -File run_sweeps.ps1
 | 输出限幅 / 死区 / 保持 | ±4 tick/帧；6 px；连续 8 帧进死区 |
 | 目标锁定 | `LOCK_R=24 px`、`FAR_N=4`、`LOST_N=3` |
 | 位置式领先窗口 | 150 tick |
+| 延迟注入 | `D_MAX=8`、`D_FIXED=2`、`JIT_STEP=8`、LFSR 种子 `16'hACE1`；上电 `MODE=0`（旁路） |
 | 关节固定区间 | CH2 1400..3200、CH3 1500..3200（∩ EEPROM ±40 tick） |
 | 桌面高度模型 | `off2=3043, off3=1011, sign=−1`，桌面原点 87.48446 mm |
 

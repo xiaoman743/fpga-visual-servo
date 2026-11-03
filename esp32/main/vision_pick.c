@@ -56,7 +56,7 @@ bool vision_pick_step(vision_pick_t *p,bool closed,bool start_ok,bool healthy,
     if(fabsf(accepted-measured)>=160){p->state=VP_ABORT;return false;}
     p->elapsed_ms+=dt_ms;
     if(p->state==VP_SETTLE){if(p->elapsed_ms>=800){p->state=VP_LIFT;p->elapsed_ms=0;}return true;}
-    if(p->elapsed_ms>8000){p->state=VP_ABORT;return false;}
+    if(p->elapsed_ms>18000){p->state=VP_ABORT;return false;}
     if(fabsf(p->target-accepted)<=0.5f) {
         /* Operator-selected command completion. DONE proves command arrival,
          * not physical travel or an object leaving the table. Runtime guards

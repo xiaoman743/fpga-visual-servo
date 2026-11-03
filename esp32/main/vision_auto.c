@@ -137,7 +137,7 @@ vision_auto_output_t vision_auto_step(vision_auto_t *s,const vision_auto_input_t
     } else if(s->state==VA_LIFT) {
         if(in->lift_aborted){vision_auto_cancel(s,"lift aborted");return out;}
         if(in->lift_done){transition(s,VA_DONE);s->reason="cycle done; object contact unverified";}
-        else if(s->elapsed_ms>10000)vision_auto_cancel(s,"lift timeout");
+        else if(s->elapsed_ms>20000)vision_auto_cancel(s,"lift timeout");
     }
     return out;
 }

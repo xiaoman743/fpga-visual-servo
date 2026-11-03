@@ -77,6 +77,12 @@ wire signed [15:0] d_pan, d_reach;       // servo commands (ticks)
 wire [7:0]  rx_byte;                     // uart rx byte
 wire        rx_valid;                    // uart rx strobe
 wire [15:0] cfg_cx, cfg_cy;              // runtime pole c
+wire [1:0]  d_mode;                  // delay injector mode  (delay_cfg)
+wire [3:0]  d_depth;                 // delay injector depth in frames
+wire        feat_done_d;             // delayed frame strobe
+wire [15:0] dcx_r, dcy_r, dcx_b, dcy_b;
+wire        dfound_r, dfound_b;
+
 wire         cmos_frame_valid          ;  //数据有效使能信号
 wire         init_calib_complete       ;  //DDR3初始化完成信号
 wire         sys_init_done             ;  //系统初始化完成
@@ -217,6 +223,47 @@ vision_features #(
     .o_found_blue (found_b_raw)
 );
 
+// ---------------- self-developed : delay injector (P5) ----------------
+delay_inject #(
+    .D_MAX     (8),
+    .D_FIXED   (2),
+    .D_MAX_JIT (8),
+    .LFSR_SEED (16'hACE1),
+    .JIT_STEP  (8),
+    .MODE      (2'd0)
+) u_delay (
+    .clk       (cam_pclk),
+    .rst_n     (rst_n),
+    .feat_done (feat_done),
+    .cx_r      (cx_r),
+    .cy_r      (cy_r),
+    .cx_b      (cx_b_raw),
+    .cy_b      (cy_b_raw),
+    .found_r   (found_r),
+    .found_b   (found_b_raw),
+    .d_mode    (d_mode),
+    .d_depth   (d_depth),
+    .o_valid   (feat_done_d),
+    .o_cx_r    (dcx_r),
+    .o_cy_r    (dcy_r),
+    .o_cx_b    (dcx_b),
+    .o_cy_b    (dcy_b),
+    .o_found_r (dfound_r),
+    .o_found_b (dfound_b),
+    .o_delay   ()
+);
+
+// "D<mode>,<depth>\n" on the same 115200 byte stream as the C command.
+delay_cfg u_delay_cfg (
+    .clk      (clk_50m),
+    .rst_n    (rst_n),
+    .rx_byte  (rx_byte),
+    .rx_valid (rx_valid),
+    .d_mode   (d_mode),
+    .d_depth  (d_depth),
+    .d_valid  ()
+);
+
 // Independent visual demo, with board keys and a checked V2 UART stream.
 uart_rx #(.CLK_FREQ(50000000),.BAUD(115200)) u_rx (
     .clk(clk_50m),.rst_n(rst_n),.rxd(uart_rxd),.o_data(rx_byte),.o_valid(rx_valid));
@@ -226,9 +273,9 @@ wire [1:0] demo_selected;
 wire [15:0] demo_goal_x,demo_goal_y;
 vision_demo u_demo (
     .clk(clk_50m),.cam_clk(cam_pclk),.rst_n(rst_n),.key_n(key_n),
-    .rx_byte(rx_byte),.rx_valid(rx_valid),.feat_done(feat_done),
-    .red_x(cx_r),.red_y(cy_r),.blue_x(cx_b_raw),.blue_y(cy_b_raw),
-    .found_red(found_r),.found_blue(found_b_raw),.led_n(led_n),
+    .rx_byte(rx_byte),.rx_valid(rx_valid),.feat_done(feat_done_d),
+    .red_x(dcx_r),.red_y(dcy_r),.blue_x(dcx_b),.blue_y(dcy_b),
+    .found_red(dfound_r),.found_blue(dfound_b),.led_n(led_n),
     .txd(uart_txd),.txd2(uart_txd2),.cfg_x(demo_x),.cfg_y(demo_y),
     .cfg_gap(demo_gap),.cfg_run(demo_run),.selected(demo_selected),
     .goal_x(demo_goal_x),.goal_y(demo_goal_y),.goal_found(demo_goal_found));
